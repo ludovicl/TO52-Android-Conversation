@@ -15,6 +15,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -83,6 +84,7 @@ public class ConversationSequence extends Activity {
 
 		super.onCreate(SavedInstanceState);
 		setContentView(R.layout.conversation_sequence);
+		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
 		qListView.add("Comment allez vous aujourd'hui ?");
 		qListSpeak.add("Comment tallez-vous aujourd'hui ?");
@@ -94,7 +96,8 @@ public class ConversationSequence extends Activity {
 		textViewQuestion = (TextView) findViewById(R.id.textViewQuestion);
 
 		btn_speech = (Button) findViewById(R.id.btnChangeResponse);
-		
+		btn_speech.setVisibility(View.INVISIBLE);
+
 		btn_speech.setOnClickListener(new View.OnClickListener() {
 
 			@Override
@@ -110,55 +113,53 @@ public class ConversationSequence extends Activity {
 		tts = new TextToSpeech(getBaseContext(),
 				new TextToSpeech.OnInitListener() {
 
-					@SuppressLint("NewApi")
-					@Override
-					public void onInit(int status) {
-						if (status == TextToSpeech.SUCCESS) {
+			@SuppressLint("NewApi")
+			@Override
+			public void onInit(int status) {
+				if (status == TextToSpeech.SUCCESS) {
 
-							HashMap<String, String> map = new HashMap<String, String>();
+					HashMap<String, String> map = new HashMap<String, String>();
 
-							map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,
-									"UniqueID");
+					map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,
+							"UniqueID");
 
-							tts.setLanguage(Locale.FRANCE);
+					tts.setLanguage(Locale.FRANCE);
 
-							tts.speak(
-									"Bonjour, nous zallons vous poser une série de question",
-									TextToSpeech.QUEUE_FLUSH, map);
+					tts.speak(
+							"Bonjour, nous zallons vous poser une série de question",
+							TextToSpeech.QUEUE_FLUSH, map);
 
-							tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+					tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
 
-								@Override
-								public void onDone(String utteranceId) {
+						@Override
+						public void onDone(String utteranceId) {
 
-									if (utteranceId.equals("UniqueID")) {
-										try {
-											Thread.sleep(2000);
-										} catch (InterruptedException e) {
-											// TODO Auto-generated catch block
-											e.printStackTrace();
-										}
-										questionAndGetResponse();
-										if (qListView.size() == 0) {
-											System.out.println(responseList);
-										}
-									}
+							if (utteranceId.equals("UniqueID")) {
+								try {
+									Thread.sleep(2000);
+								} catch (InterruptedException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
 								}
-
-								@Override
-								public void onError(String utteranceId) {
+								questionAndGetResponse();
+								if (qListView.size() == 0) {
+									System.out.println(responseList);
 								}
-
-								@Override
-								public void onStart(String utteranceId) {
-								}
-
-							});
+							}
 						}
-					}
-				});
-	}
 
+						@Override
+						public void onError(String utteranceId) {
+						}
+
+						@Override
+						public void onStart(String utteranceId) {
+						}
+					});
+				}
+			}
+		});
+	}
 
 	@SuppressLint("NewApi")
 	private void questionAndGetResponse() {
@@ -167,6 +168,7 @@ public class ConversationSequence extends Activity {
 		runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
+				btn_speech.setVisibility(View.VISIBLE);
 				textViewQuestion.setText(qListView.get(0));
 			}
 		});
@@ -201,20 +203,6 @@ public class ConversationSequence extends Activity {
 			tts.stop();
 		}
 		super.onPause();
-	}
-
-	public boolean aquireLock() {
-		try {
-			canSpeak.acquire();
-		} catch (InterruptedException e) {
-			return false;
-		}
-		return true;
-	}
-
-	public boolean releaseLock() {
-		canSpeak.release();
-		return true;
 	}
 
 	private void startVoiceRecognitionActivity() {
@@ -275,7 +263,6 @@ public class ConversationSequence extends Activity {
 										TextToSpeech.QUEUE_FLUSH, null);
 								// tts.shutdown();
 							}
-
 						}
 					}, 4000);// 4sec => waiting for possible correction
 			/**************************************************/
