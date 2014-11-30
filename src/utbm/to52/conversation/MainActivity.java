@@ -7,20 +7,28 @@ import android.app.Activity;
 import android.view.View.OnClickListener;
 
 import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 public class MainActivity extends Activity  {
 
+	BaseDeDonnees 		db;
+	SQLiteDatabase 		dataBase;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
-		
-		Button btnStartConv = (Button) findViewById(R.id.btnStartConv);
+
+		db = new BaseDeDonnees(this);
+	    db.open();
+	    
+	    Button btnStartConv = (Button) findViewById(R.id.btnStartConv);
 		btnStartConv.setOnClickListener(new View.OnClickListener() {
 			
 			@Override
@@ -38,25 +46,48 @@ public class MainActivity extends Activity  {
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.main, menu);
-		return true;
+//    	menu.add(0,100,0,"Paramétres");
+    	menu.add(0,100,0,"Ajouter 3 questions à la bdd");
+    	menu.add(0,200,0,"Nb de questions dans la bdd");
+    	menu.add(0,300,0,"Nb de réponses dans la bdd");
+    	menu.add(0,400,0,"Vider la bdd");
+    	return true;
 	}
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle action bar item clicks here. The action bar will
-		// automatically handle clicks on the Home/Up button, so long
-		// as you specify a parent activity in AndroidManifest.xml.
-		int id = item.getItemId();
+    	switch(item.getItemId()){
 
-		if (id == R.id.action_settings) {
-			return true;
-		}
-
-		return super.onOptionsItemSelected(item);
-	}
-
+//    	case 100: 
+//    		
+//    		Toast.makeText(this, "Paramétres", Toast.LENGTH_LONG).show();
+//    		break;
+    	case 100: 
+			db.viderBDD();
+    		db.ajouterQuestionDansBDD("Comment allez vous aujourd'hui ?", "Comment tallez-vous aujourd'hui ?");
+//    			db.ajouterReponseDansBDD(1, "15-11-14 22-24-01", 1, "Tr�s bien merci");
+   		db.ajouterQuestionDansBDD("Qu'avez-vous pris pour le petit déjeuner ?", "Kavez-vous pris pour le petit déjeuner ?");
+//    			db.ajouterReponseDansBDD(1, "15-11-14 22-24-11", 1, "Un caf�");
+    		db.ajouterQuestionDansBDD("Avez vous pris vos médicaments ce matin ?", "Avez vous pris vos médicaments ce matin ?");
+//    			db.ajouterReponseDansBDD(1, "15-11-14 22-24-16", 3, "Oui ce matin");
+    		
+    		Toast.makeText(this, "3 questions ajoutées", Toast.LENGTH_LONG).show();
+			break;
+    	case 200: 
+			Toast.makeText(this, "Il y a "+db.compterValeurs_t_questions()+" questions", Toast.LENGTH_LONG).show();
+			break;
+    	case 300: 
+			Toast.makeText(this, "Il y a "+db.compterValeurs_t_reponses()+" réponses", Toast.LENGTH_LONG).show();
+			break;
+    	case 400: 
+			db.viderBDD();
+			Toast.makeText(this, "Bdd vidée", Toast.LENGTH_LONG).show();
+			Toast.makeText(this, "Il y a "+db.compterValeurs_t_questions()+" questions", Toast.LENGTH_LONG).show();
+			Toast.makeText(this, "Il y a "+db.compterValeurs_t_reponses()+" réponses", Toast.LENGTH_LONG).show();
+			break;
+    	}	
+    	return true;
+    }
 
 
 //	public void onClick(View v) {

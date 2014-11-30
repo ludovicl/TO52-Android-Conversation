@@ -1,12 +1,12 @@
 package utbm.to52.conversation;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -16,6 +16,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -63,6 +64,9 @@ public class ConversationSequence extends Activity {
 	private Runnable waitModificationrunnable;
 	private Button btn_speech;
 
+	BaseDeDonnees db;
+	SQLiteDatabase dataBase;
+
 	ArrayList<QuestionResponse> responseList = new ArrayList<QuestionResponse>();
 
 	private ArrayList<String> qListView = new ArrayList<String>();
@@ -74,9 +78,10 @@ public class ConversationSequence extends Activity {
 
 	private String response;
 
+	private int numLastQuestion = 0;
+
 	private TextView textViewAnswer;
 	private TextView textViewQuestion;
-	private final static Semaphore canSpeak = new Semaphore(1, true);
 	final CountDownLatch latch = new CountDownLatch(1);
 
 	@Override
@@ -86,11 +91,11 @@ public class ConversationSequence extends Activity {
 		setContentView(R.layout.conversation_sequence);
 		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
-		qListView.add("Comment allez vous aujourd'hui ?");
-		qListSpeak.add("Comment tallez-vous aujourd'hui ?");
+		db = new BaseDeDonnees(this);
+		db.open();
 
-		qListView.add("Qu'avez-vous pris pour le petit déjeuner ?");
-		qListSpeak.add("kavez-vous pris pour le petit déjeuner ?");
+		qListView = db.getListQuestionView();
+		qListSpeak = db.getListQuestionSpeak();
 
 		textViewAnswer = (TextView) findViewById(R.id.textViewAnswer);
 		textViewQuestion = (TextView) findViewById(R.id.textViewQuestion);
@@ -104,8 +109,7 @@ public class ConversationSequence extends Activity {
 			public void onClick(View v) {
 				modificationHandler.removeCallbacks(waitModificationrunnable);
 				questionAndGetResponse();
-				// TextView textViewAnswer = (TextView)
-				// findViewById(R.id.textViewAnswer);
+
 				textViewAnswer.setText("");
 			}
 		});
@@ -113,52 +117,52 @@ public class ConversationSequence extends Activity {
 		tts = new TextToSpeech(getBaseContext(),
 				new TextToSpeech.OnInitListener() {
 
-			@SuppressLint("NewApi")
-			@Override
-			public void onInit(int status) {
-				if (status == TextToSpeech.SUCCESS) {
+					@SuppressLint("NewApi")
+					@Override
+					public void onInit(int status) {
+						if (status == TextToSpeech.SUCCESS) {
 
-					HashMap<String, String> map = new HashMap<String, String>();
+							HashMap<String, String> map = new HashMap<String, String>();
 
-					map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,
-							"UniqueID");
+							map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,
+									"UniqueID");
 
-					tts.setLanguage(Locale.FRANCE);
+							tts.setLanguage(Locale.FRANCE);
 
-					tts.speak(
-							"Bonjour, nous zallons vous poser une série de question",
-							TextToSpeech.QUEUE_FLUSH, map);
+							tts.speak(
+									"Bonjour, nous zallons vous poser une série de question",
+									TextToSpeech.QUEUE_FLUSH, map);
 
-					tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+							tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
 
-						@Override
-						public void onDone(String utteranceId) {
+								@Override
+								public void onDone(String utteranceId) {
 
-							if (utteranceId.equals("UniqueID")) {
-								try {
-									Thread.sleep(2000);
-								} catch (InterruptedException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
+									if (utteranceId.equals("UniqueID")) {
+										try {
+											Thread.sleep(2000);
+										} catch (InterruptedException e) {
+											// TODO Auto-generated catch block
+											e.printStackTrace();
+										}
+										questionAndGetResponse();
+										if (qListView.size() == 0) {
+											System.out.println(responseList);
+										}
+									}
 								}
-								questionAndGetResponse();
-								if (qListView.size() == 0) {
-									System.out.println(responseList);
+
+								@Override
+								public void onError(String utteranceId) {
 								}
-							}
-						}
 
-						@Override
-						public void onError(String utteranceId) {
+								@Override
+								public void onStart(String utteranceId) {
+								}
+							});
 						}
-
-						@Override
-						public void onStart(String utteranceId) {
-						}
-					});
-				}
-			}
-		});
+					}
+				});
 	}
 
 	@SuppressLint("NewApi")
@@ -172,7 +176,7 @@ public class ConversationSequence extends Activity {
 				textViewQuestion.setText(qListView.get(0));
 			}
 		});
-		//
+		
 		HashMap<String, String> map = new HashMap<String, String>();
 		map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "UniqueID2");
 
@@ -241,6 +245,7 @@ public class ConversationSequence extends Activity {
 			modificationHandler = new Handler();
 			modificationHandler.postDelayed(
 					waitModificationrunnable = new Runnable() {
+						@SuppressLint("SimpleDateFormat")
 						public void run() {
 
 							QuestionResponse qr = new QuestionResponse(
@@ -250,18 +255,59 @@ public class ConversationSequence extends Activity {
 							qListView.remove(0);
 							qListSpeak.remove(0);
 
-							if (qListView.size() != 0 && response != null) {
+							if (!qListView.isEmpty()  && response != null) {
 								textViewAnswer.setText("");
 								questionAndGetResponse();
 							} else {
 								for (QuestionResponse t_qr : responseList) {
-									System.out.println(t_qr.getQuestion());
-									System.out.println(t_qr.getResponse());
+
+									int idQuestion = db
+											.getIdQuestionsDansTableQuestion(t_qr
+													.getQuestion());
+
+									Date d = new Date();
+									SimpleDateFormat f = new SimpleDateFormat(
+											"yyyyMMdd'T'HHmmss");
+									String dateCourante = f.format(d);
+
+									//add question in database
+									db.ajouterReponseDansBDD(idQuestion,
+											dateCourante, numLastQuestion,
+											t_qr.getResponse());
 								}
+
+								HashMap<String, String> map = new HashMap<String, String>();
+								map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,
+										"UniqueID3");
+
 								tts.speak(
 										"Merci pour vos réponses et à bientôt",
-										TextToSpeech.QUEUE_FLUSH, null);
-								// tts.shutdown();
+										TextToSpeech.QUEUE_FLUSH, map);
+
+								/*----Progress listener of "a bientot" for terminate activity at the end----*/
+								tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+									@Override
+									public void onDone(String utteranceId) {
+
+										if (utteranceId.equals("UniqueID3")) {
+											tts.shutdown();// close tts
+											Intent intent = new Intent(
+													ConversationSequence.this,
+													MainActivity.class);
+											startActivity(intent);
+										}
+									}
+
+									@Override
+									public void onError(String utteranceId) {
+									}
+
+									@Override
+									public void onStart(String utteranceId) {
+									}
+								});
+								/*------------------------------------------------------------------------*/
+
 							}
 						}
 					}, 4000);// 4sec => waiting for possible correction
