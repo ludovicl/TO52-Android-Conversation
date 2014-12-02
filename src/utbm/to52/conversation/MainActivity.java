@@ -1,10 +1,7 @@
 package utbm.to52.conversation;
 
 import android.app.Activity;
-//import android.content.DialogInterface;
-//import android.content.DialogInterface.OnClickListener;
 
-import android.view.View.OnClickListener;
 
 import android.content.Intent;
 import android.database.sqlite.SQLiteDatabase;

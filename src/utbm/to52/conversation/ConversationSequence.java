@@ -5,22 +5,12 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
-import android.R.array;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
-import android.os.SystemClock;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
@@ -54,7 +44,6 @@ class QuestionResponse {
 	public void setResponse(String r) {
 		this.response = r;
 	}
-
 }
 
 public class ConversationSequence extends Activity {
@@ -62,27 +51,17 @@ public class ConversationSequence extends Activity {
 	private TextToSpeech tts;
 	private Handler modificationHandler;
 	private Runnable waitModificationrunnable;
-	private Button btn_speech;
-
-	BaseDeDonnees db;
-	SQLiteDatabase dataBase;
-
-	ArrayList<QuestionResponse> responseList = new ArrayList<QuestionResponse>();
-
-	private ArrayList<String> qListView = new ArrayList<String>();
-	private ArrayList<String> qListSpeak = new ArrayList<String>();
-
-	Lock locker = new ReentrantLock();
-
-	private static final int VOICE_RECOGNITION_REQUEST_CODE = 1234;
-
+	private Button btn_change_response;
+	private BaseDeDonnees db;
 	private String response;
-
-	private int numLastQuestion = 0;
-
 	private TextView textViewAnswer;
 	private TextView textViewQuestion;
-	final CountDownLatch latch = new CountDownLatch(1);
+
+	private ArrayList<QuestionResponse> responseList = new ArrayList<QuestionResponse>();
+	private ArrayList<String> qListView = new ArrayList<String>();
+	private ArrayList<String> qListSpeak = new ArrayList<String>();
+	private static final int VOICE_RECOGNITION_REQUEST_CODE = 1234;
+	private int numLastQuestion = 0;
 
 	@Override
 	protected void onCreate(Bundle SavedInstanceState) {
@@ -100,16 +79,19 @@ public class ConversationSequence extends Activity {
 		textViewAnswer = (TextView) findViewById(R.id.textViewAnswer);
 		textViewQuestion = (TextView) findViewById(R.id.textViewQuestion);
 
-		btn_speech = (Button) findViewById(R.id.btnChangeResponse);
-		btn_speech.setVisibility(View.INVISIBLE);
+		btn_change_response = (Button) findViewById(R.id.btnChangeResponse);
+		btn_change_response.setVisibility(View.INVISIBLE);
 
-		btn_speech.setOnClickListener(new View.OnClickListener() {
+		btn_change_response.setOnClickListener(new View.OnClickListener() {
 
+			/*
+			 * On click we remove the callback and we use questionAndGetResponse
+			 * again => the same question is asked and the answer is deleted
+			 */
 			@Override
 			public void onClick(View v) {
 				modificationHandler.removeCallbacks(waitModificationrunnable);
 				questionAndGetResponse();
-
 				textViewAnswer.setText("");
 			}
 		});
@@ -118,10 +100,15 @@ public class ConversationSequence extends Activity {
 				new TextToSpeech.OnInitListener() {
 
 					@SuppressLint("NewApi")
+					/*
+					 * TextToSpeech initialization Can take few seconds to be
+					 * initialized
+					 */
 					@Override
 					public void onInit(int status) {
 						if (status == TextToSpeech.SUCCESS) {
 
+							/* HashMap used by setOnUtteranceProgressListener */
 							HashMap<String, String> map = new HashMap<String, String>();
 
 							map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,
@@ -135,6 +122,10 @@ public class ConversationSequence extends Activity {
 
 							tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
 
+								/*
+								 * When speak is done wait for 2sec and start
+								 * questionAndGetResponse();
+								 */
 								@Override
 								public void onDone(String utteranceId) {
 
@@ -146,9 +137,6 @@ public class ConversationSequence extends Activity {
 											e.printStackTrace();
 										}
 										questionAndGetResponse();
-										if (qListView.size() == 0) {
-											System.out.println(responseList);
-										}
 									}
 								}
 
@@ -167,21 +155,22 @@ public class ConversationSequence extends Activity {
 
 	@SuppressLint("NewApi")
 	private void questionAndGetResponse() {
-		// SystemClock.sleep(4000);
 
+		/* Show the question in textView */
 		runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				btn_speech.setVisibility(View.VISIBLE);
+				btn_change_response.setVisibility(View.VISIBLE);
 				textViewQuestion.setText(qListView.get(0));
 			}
 		});
-		
+
 		HashMap<String, String> map = new HashMap<String, String>();
 		map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "UniqueID2");
 
 		tts.speak(qListSpeak.get(0), TextToSpeech.QUEUE_FLUSH, map);
 
+		/* When question is spoken, android listen with VoiceRecognition */
 		tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
 			@Override
 			public void onDone(String utteranceId) {
@@ -209,8 +198,8 @@ public class ConversationSequence extends Activity {
 		super.onPause();
 	}
 
+	/* Create the intent speech */
 	private void startVoiceRecognitionActivity() {
-		System.out.println("dans voice recognize");
 		Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
 		intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
 				RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -218,6 +207,7 @@ public class ConversationSequence extends Activity {
 		startActivityForResult(intent, VOICE_RECOGNITION_REQUEST_CODE);
 	}
 
+	/* User has spoken, analyse answer */
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		if (requestCode == VOICE_RECOGNITION_REQUEST_CODE
@@ -238,81 +228,84 @@ public class ConversationSequence extends Activity {
 				}
 			});
 
-			/***
+			/*
 			 * Handler that wait 4sec before saving answer and continuing
 			 * sequence
-			 ****/
+			 */
 			modificationHandler = new Handler();
 			modificationHandler.postDelayed(
-					waitModificationrunnable = new Runnable() {
-						@SuppressLint("SimpleDateFormat")
-						public void run() {
 
-							QuestionResponse qr = new QuestionResponse(
-									qListView.get(0), response);
-							responseList.add(qr);
+			/* wait 4 sec 
+			  user may want to change his answer */
+			waitModificationrunnable = new Runnable() {
+				@SuppressLint("SimpleDateFormat")
+				public void run() {
 
-							qListView.remove(0);
-							qListSpeak.remove(0);
+					QuestionResponse qr = new QuestionResponse(
+							qListView.get(0), response);
 
-							if (!qListView.isEmpty()  && response != null) {
-								textViewAnswer.setText("");
-								questionAndGetResponse();
-							} else {
-								for (QuestionResponse t_qr : responseList) {
+					responseList.add(qr);
 
-									int idQuestion = db
-											.getIdQuestionsDansTableQuestion(t_qr
-													.getQuestion());
+					/* remove from the list after each question */
+					qListView.remove(0);
+					qListSpeak.remove(0);
 
-									Date d = new Date();
-									SimpleDateFormat f = new SimpleDateFormat(
-											"yyyyMMdd'T'HHmmss");
-									String dateCourante = f.format(d);
+					if (!qListView.isEmpty() && response != null) {
+						textViewAnswer.setText("");
+						questionAndGetResponse();
+					} else { // we are done, every question has an answer
+						for (QuestionResponse t_qr : responseList) {
 
-									//add question in database
-									db.ajouterReponseDansBDD(idQuestion,
-											dateCourante, numLastQuestion,
-											t_qr.getResponse());
-								}
+							int idQuestion = db
+									.getIdQuestionsDansTableQuestion(t_qr
+											.getQuestion());
 
-								HashMap<String, String> map = new HashMap<String, String>();
-								map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,
-										"UniqueID3");
+							Date d = new Date();
+							SimpleDateFormat f = new SimpleDateFormat(
+									"yyyyMMdd'T'HHmmss");
+							String dateCourante = f.format(d);
 
-								tts.speak(
-										"Merci pour vos réponses et à bientôt",
-										TextToSpeech.QUEUE_FLUSH, map);
-
-								/*----Progress listener of "a bientot" for terminate activity at the end----*/
-								tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-									@Override
-									public void onDone(String utteranceId) {
-
-										if (utteranceId.equals("UniqueID3")) {
-											tts.shutdown();// close tts
-											Intent intent = new Intent(
-													ConversationSequence.this,
-													MainActivity.class);
-											startActivity(intent);
-										}
-									}
-
-									@Override
-									public void onError(String utteranceId) {
-									}
-
-									@Override
-									public void onStart(String utteranceId) {
-									}
-								});
-								/*------------------------------------------------------------------------*/
-
-							}
+							// add question in database
+							db.ajouterReponseDansBDD(idQuestion, dateCourante,
+									numLastQuestion, t_qr.getResponse());
 						}
-					}, 4000);// 4sec => waiting for possible correction
-			/**************************************************/
 
+						HashMap<String, String> map = new HashMap<String, String>();
+						map.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID,
+								"UniqueID3");
+
+						tts.speak("Merci pour vos réponses et à bientôt",
+								TextToSpeech.QUEUE_FLUSH, map);
+
+						/*----Progress listener of "a bientot" for terminate activity at the end----*/
+						tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+							@Override
+							public void onDone(String utteranceId) {
+
+								if (utteranceId.equals("UniqueID3")) {
+									tts.shutdown();// close tts
+
+									/* back do main activity */
+									Intent intent = new Intent(
+											ConversationSequence.this,
+											MainActivity.class);
+									startActivity(intent);
+								}
+							}
+
+							@Override
+							public void onError(String utteranceId) {
+							}
+
+							@Override
+							public void onStart(String utteranceId) {
+							}
+						});
+						/*------------------------------------------------------------------------*/
+
+					}
+				}
+			}, 4000);// 4sec => waiting for possible correction
 		}
 
 		super.onActivityResult(requestCode, resultCode, data);
