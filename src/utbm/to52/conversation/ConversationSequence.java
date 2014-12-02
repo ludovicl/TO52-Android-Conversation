@@ -52,7 +52,7 @@ public class ConversationSequence extends Activity {
 	private Handler modificationHandler;
 	private Runnable waitModificationrunnable;
 	private Button btn_change_response;
-	private BaseDeDonnees db;
+	private Database db;
 	private String response;
 	private TextView textViewAnswer;
 	private TextView textViewQuestion;
@@ -70,7 +70,7 @@ public class ConversationSequence extends Activity {
 		setContentView(R.layout.conversation_sequence);
 		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
-		db = new BaseDeDonnees(this);
+		db = new Database(this);
 		db.open();
 
 		qListView = db.getListQuestionView();
@@ -257,7 +257,7 @@ public class ConversationSequence extends Activity {
 						for (QuestionResponse t_qr : responseList) {
 
 							int idQuestion = db
-									.getIdQuestionsDansTableQuestion(t_qr
+									.getIdQuestions(t_qr
 											.getQuestion());
 
 							Date d = new Date();
@@ -266,7 +266,7 @@ public class ConversationSequence extends Activity {
 							String dateCourante = f.format(d);
 
 							// add question in database
-							db.ajouterReponseDansBDD(idQuestion, dateCourante,
+							db.addAnswerIntoBDD(idQuestion, dateCourante,
 									numLastQuestion, t_qr.getResponse());
 						}
 

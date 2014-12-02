@@ -10,30 +10,34 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.widget.Toast;
 
-public class BaseDeDonnees {
+public class Database {
 
 	DatabaseHelper			DBHelper;
 	Context					context;
     
+	//declare sqlite database db
 	public static SQLiteDatabase	db;
 	@SuppressWarnings("unused")
 	private static final int DATABASE_VERSION = 1;
 	
-	public BaseDeDonnees(Context context){
+	
+	//constructor with call to DatabaseHelper
+	public Database(Context context){
 		this.context = context;
 		DBHelper = new DatabaseHelper(context);
 	}
 
+	//
 	public class DatabaseHelper extends SQLiteOpenHelper{
 
 		Context			context;
 		
 		public DatabaseHelper(Context context) {
-			super(context, "bdd_RecoVocale1", null, 1);  //  <---Version number : 1
+			super(context, "bdd_RecoVocale2", null, 1);  //  <---Version number : 1
 			this.context = context;
 		}
 
-
+		//query for creating tables questions & answers
 		@Override
 		public void onCreate(SQLiteDatabase db) {
 				db.execSQL("create table t_questions (idQuestion integer primary key autoincrement, "
@@ -49,6 +53,7 @@ public class BaseDeDonnees {
 						+ ");");
 			}
 
+		//special function for upgrade the database, this function truncate the tables
 		@Override
 		public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 			Toast.makeText(context, "MAJ de la BDD : V."+oldVersion+" -> V."+newVersion, Toast.LENGTH_SHORT).show();
@@ -58,7 +63,7 @@ public class BaseDeDonnees {
 		}
 	}
 
-	public BaseDeDonnees open(){
+	public Database open(){
 		db = DBHelper.getWritableDatabase();
 		return this;
 	}
@@ -67,37 +72,37 @@ public class BaseDeDonnees {
 		db.close();
 	}
 
-	public void SupprimerDonnees_t_questions(){
+	//truncate tables
+	public void deleteData_t_questions(){
 		db.execSQL("DELETE FROM t_questions");
 	}
-
-	public void SupprimerDonnees_t_reponses(){
+	public void deleteData_t_reponses(){
 		db.execSQL("DELETE FROM t_reponses");
 	}
 
 	public void viderBDD(){
-		SupprimerDonnees_t_questions();
-		SupprimerDonnees_t_reponses();
+		deleteData_t_questions();
+		deleteData_t_reponses();
 	}
 	
-	public long  compterValeurs_t_questions(){
+	//count values from tables
+	public long  countValue_t_questions(){
 		long nbVal= DatabaseUtils.queryNumEntries(db,"t_questions");
 		return nbVal;
 	}
-	
-	public long  compterValeurs_t_reponses(){
+	public long  countValue_t_reponses(){
 		long nbVal= DatabaseUtils.queryNumEntries(db,"t_reponses");
 		return nbVal;
 	}
 
-	public long ajouterQuestionDansBDD(String questionPourEcrire, String questionPourLire){
+	//add some value into respective tables
+	public long addQuestionIntoBDD(String questionPourEcrire, String questionPourLire){
 		ContentValues values = new ContentValues();
 				values.put("questionPourEcrire", questionPourEcrire);
 				values.put("questionPourLire", questionPourLire );
 			return db.insert("t_questions", null, values);
 	}
-
-	public long ajouterReponseDansBDD(Integer idQuestion, String dateCourante, Integer numeroSession, String phraseReponse){
+	public long addAnswerIntoBDD(Integer idQuestion, String dateCourante, Integer numeroSession, String phraseReponse){
 		ContentValues values = new ContentValues();
 				values.put("idQuestion", idQuestion);
 				values.put("dateCourante", dateCourante);
@@ -106,18 +111,18 @@ public class BaseDeDonnees {
 			return db.insert("t_reponses", null, values);
 	}
 	
-	public Cursor lireDonneesQuestions(){
+	//function usefull for read datas
+	public Cursor readQuestions(){
 		return db.query("t_questions", new String[]{ "idQuestion", "questionPourEcrire", "questionPourLire"}, null, null, null, null, null);
 	}
-
-	public Cursor lireDonneesReponses(){
+	public Cursor readAnswers(){
 		return db.query("t_reponses", new String[]{ "idReponse", "idQuestion", "dateCourante", "numeroSession", "phraseReponse"}, null, null, null, null, null);
 	}
 
-	
-	public Integer getIdQuestionsDansTableQuestion(String question) {
+	//get some question giving specific informations 
+	public Integer getIdQuestions(String question) {
 		int id = 0;
-		Cursor cursor = lireDonneesQuestions();
+		Cursor cursor = readQuestions();
 		if (cursor.moveToFirst()) {
 		   do {
 			   if(question.equals(cursor.getString(1)))
@@ -128,10 +133,10 @@ public class BaseDeDonnees {
 		}
 		return id;
 	}
-	
-	public String getQuestionDansTableQuestion(int id) {
+	//get some answers giving specific informations 	
+	public String getQuestion(int id) {
 		String question = "";
-		Cursor cursor = lireDonneesQuestions();
+		Cursor cursor = readQuestions();
 		if (cursor.moveToFirst()) {
 		   do {
 			   if(id == cursor.getInt(0))
@@ -143,10 +148,11 @@ public class BaseDeDonnees {
 		return question;
 	}
 	
+	//function to get list of questions
 	public ArrayList<String> getListQuestionSpeak() {
 	       
 		ArrayList<String> listQuestionSpeak = new ArrayList<String>();
-		Cursor cursor = lireDonneesQuestions();
+		Cursor cursor = readQuestions();
 		
 		if (cursor.moveToFirst()) {
 	       do {
@@ -156,10 +162,11 @@ public class BaseDeDonnees {
 		return listQuestionSpeak;
 	}
 	
+	//function to get list of answers
 	public ArrayList<String> getListQuestionView() {
 	       
 		ArrayList<String> listQuestionView = new ArrayList<String>();
-		Cursor cursor = lireDonneesQuestions();
+		Cursor cursor = readQuestions();
 		
 		if (cursor.moveToFirst()) {
 	       do {
